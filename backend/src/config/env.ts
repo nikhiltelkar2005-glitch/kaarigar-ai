@@ -19,6 +19,7 @@ const schema = z.object({
   JWT_ACCESS_EXPIRY: z.string().default('15m'),
   JWT_REFRESH_EXPIRY: z.string().default('7d'),
   CLIENT_ORIGIN: z.string().default('*'),
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 const result = schema.safeParse(process.env);
