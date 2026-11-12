@@ -1,0 +1,141 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Kaarigar AI — Shared Database Schema
+// COORDINATION REQUIRED before modifying this file.
+//
+// Model Ownership:
+//   User, RefreshToken, ArtisanProfile  →  Nikhil
+//   Product, ProductImage               →  Suhani + Vishwajit (coordinate with Nikhil)
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  ARTISAN
+  BUYER
+  ADMIN
+}
+
+enum CraftType {
+  WEAVING_HANDLOOM
+  POTTERY_CERAMICS
+  WOODWORK_CARVING
+  METAL_CRAFT
+  LEATHER_CRAFT
+  EMBROIDERY_TEXTILE
+  JEWELRY_ORNAMENTS
+  PAINTING_FOLK_ART
+  STONE_CARVING
+  BAMBOO_CANE_CRAFT
+  OTHER
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  OUT_OF_STOCK
+  ARCHIVED
+}
+
+// ─── Nikhil's Models ─────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String
+  role         Role     @default(ARTISAN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  artisanProfile ArtisanProfile?
+  refreshTokens  RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model ArtisanProfile {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName        String
+  businessName    String
+  craftType       CraftType @default(WEAVING_HANDLOOM)
+  bio             String?   @db.Text
+  story           String?   @db.Text
+  experienceYears Int?      @default(0)
+  city            String?
+  state           String?
+  pincode         String?
+  address         String?   @db.Text
+  upiId           String?
+  avatarUrl       String?
+  isVerified      Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relation used by Suhani & Vishwajit — do not remove
+  products Product[]
+
+  @@map("artisan_profiles")
+}
+
+// ─── Shared Models (Suhani + Vishwajit) ──────────────────────────────────────
+// Defined here to satisfy relational integrity.
+// Fields are added by Suhani/Vishwajit in coordination with Nikhil.
+
+model Product {
+  id             String         @id @default(uuid())
+  artisanId      String
+  artisan        ArtisanProfile @relation(fields: [artisanId], references: [id], onDelete: Cascade)
+  title          String
+  rawDescription String?        @db.Text
+  aiDescription  String?        @db.Text
+  status         ProductStatus  @default(DRAFT)
+  stockQuantity  Int            @default(0)
+  baseCost       Decimal?       @db.Decimal(10, 2)
+  suggestedPrice Decimal?       @db.Decimal(10, 2)
+  finalPrice     Decimal?       @db.Decimal(10, 2)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  images ProductImage[]
+
+  @@index([artisanId])
+  @@map("products")
+}
+
+model ProductImage {
+  id          String   @id @default(uuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  rawUrl      String
+  enhancedUrl String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([productId])
+  @@map("product_images")
+}
+
